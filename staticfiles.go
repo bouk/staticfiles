@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -29,6 +30,9 @@ func processDir(c chan [2]string, dir string, parents []string) {
 		log.Fatal(err)
 	}
 	for _, file := range files {
+		if strings.HasPrefix(file.Name(), ".") {
+			continue
+		}
 		n := filepath.Join(dir, file.Name())
 		id := append(parents, file.Name())
 		if file.IsDir() {
@@ -111,6 +115,9 @@ func main() {
 	}
 	res, err := format.Source(b.Bytes())
 	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(outputFile), 0755); err != nil {
 		log.Fatal(err)
 	}
 	f, err := os.Create(outputFile)
