@@ -40,9 +40,10 @@ func processDir(c chan [2]string, dir string, parents []string) {
 }
 
 func main() {
-	var outputFile, packageName string
+	var outputFile, packageName, buildTags string
 	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
 	flag.StringVar(&packageName, "p", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
+	flag.StringVar(&buildTags, "build-tags", "", "Build tags to write to the file")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		log.Println("Please pass in a directory to process")
@@ -88,11 +89,11 @@ func main() {
 		writer.Close()
 		if b2.Len() < b.Len() {
 			files = append(files, &file{
-				name:             asset[1],
-				data:             b2.String(),
-				mime:             mime.TypeByExtension(filepath.Ext(asset[0])),
-				mtime:            stat.ModTime(),
-				size: stat.Size(),
+				name:  asset[1],
+				data:  b2.String(),
+				mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
+				mtime: stat.ModTime(),
+				size:  stat.Size(),
 			})
 		} else {
 			files = append(files, &file{
@@ -105,7 +106,7 @@ func main() {
 		b.Reset()
 		b2.Reset()
 	}
-	if err := GenerateTemplate(&b, packageName, files); err != nil {
+	if err := GenerateTemplate(&b, packageName, files, buildTags); err != nil {
 		log.Fatal(err)
 	}
 	res, err := format.Source(b.Bytes())

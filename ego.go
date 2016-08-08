@@ -11,42 +11,52 @@ import (
 
 var _ = fmt.Sprint("") // just so that we can keep the fmt import for now
 //line template.ego:1
-func GenerateTemplate(w io.Writer, pkg string, files []*file) error {
+func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error {
 //line template.ego:2
 	_, _ = io.WriteString(w, "\n")
+//line template.ego:2
+	if buildTags != "" {
 //line template.ego:3
-	_, _ = io.WriteString(w, "\npackage ")
+		_, _ = io.WriteString(w, "\n// +build ")
 //line template.ego:3
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", pkg)))
+		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", buildTags)))
 //line template.ego:4
-	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype file struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n}\n\nvar files = map[string]*file{")
-//line template.ego:23
-	for _, f := range files {
-//line template.ego:24
-		_, _ = io.WriteString(w, "\n  ")
-//line template.ego:24
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.name))
-//line template.ego:24
-		_, _ = io.WriteString(w, ": {\n    data: ")
-//line template.ego:25
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.data))
-//line template.ego:25
-		_, _ = io.WriteString(w, ",\n    mime: ")
-//line template.ego:26
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.mime))
-//line template.ego:26
-		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
-//line template.ego:27
-		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.mtime.Unix())))
-//line template.ego:27
-		_, _ = io.WriteString(w, ", 0),\n    size: ")
-//line template.ego:28
-		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.size)))
-//line template.ego:28
-		_, _ = io.WriteString(w, ",\n  },")
-//line template.ego:29
+		_, _ = io.WriteString(w, "\n\n")
+//line template.ego:5
 	}
+//line template.ego:5
+	_, _ = io.WriteString(w, "package ")
+//line template.ego:5
+	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", pkg)))
+//line template.ego:6
+	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype file struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n}\n\nvar files = map[string]*file{")
+//line template.ego:25
+	for _, f := range files {
+//line template.ego:26
+		_, _ = io.WriteString(w, "\n  ")
+//line template.ego:26
+		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.name))
+//line template.ego:26
+		_, _ = io.WriteString(w, ": {\n    data: ")
+//line template.ego:27
+		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.data))
+//line template.ego:27
+		_, _ = io.WriteString(w, ",\n    mime: ")
+//line template.ego:28
+		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.mime))
+//line template.ego:28
+		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
+//line template.ego:29
+		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.mtime.Unix())))
+//line template.ego:29
+		_, _ = io.WriteString(w, ", 0),\n    size: ")
 //line template.ego:30
+		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.size)))
+//line template.ego:30
+		_, _ = io.WriteString(w, ",\n  },")
+//line template.ego:31
+	}
+//line template.ego:32
 	_, _ = io.WriteString(w, "\n}\n\n// NotFound is called when no asset is found.\n// It defaults to http.NotFound but can be overwritten\nvar NotFound = http.NotFound\n\n// ServeHTTP serves a request, attempting to reply with an embedded file.\nfunc ServeHTTP(rw http.ResponseWriter, req *http.Request) {\n  f, ok := files[strings.TrimPrefix(req.URL.Path, \"/\")]\n  if !ok {\n    NotFound(rw, req)\n    return\n  }\n  header := rw.Header()\n  if !f.mtime.IsZero() {\n    if t, err := time.Parse(http.TimeFormat, req.Header.Get(\"If-Modified-Since\")); err == nil && f.mtime.Before(t.Add(1*time.Second)) {\n      rw.WriteHeader(http.StatusNotModified)\n      return\n    }\n    header.Set(\"Last-Modified\", f.mtime.UTC().Format(http.TimeFormat))\n  }\n  header.Set(\"Content-Type\", f.mime)\n\n  // Check if the asset is compressed in the binary\n  if f.size == 0 {\n    header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n    io.WriteString(rw, f.data)\n  } else {\n    if strings.Contains(req.Header.Get(\"Accept-Encoding\"), \"gzip\") {\n      header.Set(\"Content-Encoding\", \"gzip\")\n      header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n      io.WriteString(rw, f.data)\n    } else {\n      header.Set(\"Content-Length\", strconv.Itoa(f.size))\n      reader, _ := gzip.NewReader(strings.NewReader(f.data))\n      io.Copy(rw, reader)\n      reader.Close()\n    }\n  }\n}\n\n// Server is an http.Handler that serves the embedded files\nvar Server http.Handler = http.HandlerFunc(ServeHTTP)\n\n// Open allows you to read an embedded file directly.\nfunc Open(name string) (io.Reader, error) {\n  f, ok := files[name]\n  if !ok {\n    return nil, fmt.Errorf(\"Asset %s not found\", name)\n  }\n\n  if f.size == 0 {\n    return strings.NewReader(f.data), nil\n  } else {\n    return gzip.NewReader(strings.NewReader(f.data))\n  }\n}\n\n// MTime returns the time a specific file was last modified\n// Useful for caching purposes\nfunc MTime(file string) (t time.Time) {\n  if f, ok := files[file]; ok {\n    t = f.mtime\n  }\n  return\n}\n")
 	return nil
 }

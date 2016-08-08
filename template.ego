@@ -1,6 +1,8 @@
-<%! func GenerateTemplate(w io.Writer, pkg string, files []*file) error %>
-<%% import "fmt" %%>
-package <%= pkg %>
+<%! func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error %>
+<%% import "fmt" %%><% if buildTags != "" { %>
+// +build <%= buildTags %>
+
+<% } %>package <%= pkg %>
 
 import (
   "compress/gzip"
