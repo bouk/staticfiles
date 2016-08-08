@@ -16,7 +16,8 @@ type file struct {
   data             string
   mime             string
   mtime            time.Time
-  uncompressedSize int
+  // size is the size before compression. If 0, it means the data is uncompressed
+  size int
 }
 
 var files = map[string]*file{<% for _, f := range files { %>
@@ -24,9 +25,9 @@ var files = map[string]*file{<% for _, f := range files { %>
     data: <%== fmt.Sprintf("%q", f.data) %>,
     mime: <%== fmt.Sprintf("%q", f.mime) %>,
     mtime: time.Unix(<%= f.mtime.Unix() %>, 0),
-    uncompressedSize: <%= f.uncompressedSize %>,
-  },
-<% } %>}
+    size: <%= f.size %>,
+  },<% } %>
+}
 
 func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
   f, ok := files[strings.TrimPrefix(req.URL.Path, "/")]
@@ -43,22 +44,28 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
     header.Set("Last-Modified", f.mtime.UTC().Format(http.TimeFormat))
   }
   header.Set("Content-Type", f.mime)
-  if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-    b := *(*[]byte)(unsafe.Pointer(&f.data))
-    header.Set("Content-Encoding", "gzip")
+
+  // unsafe hack to avoid a copy
+  b := *(*[]byte)(unsafe.Pointer(&f.data))
+  // Check if the asset is compressed in the binary
+  if f.size == 0 {
     header.Set("Content-Length", strconv.Itoa(len(b)))
-    rw.WriteHeader(http.StatusOK)
     rw.Write(b)
   } else {
-    reader, err := gzip.NewReader(strings.NewReader(f.data))
-    if err != nil {
-      http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-      return
+    if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+      header.Set("Content-Encoding", "gzip")
+      header.Set("Content-Length", strconv.Itoa(len(b)))
+      rw.Write(b)
+    } else {
+      reader, err := gzip.NewReader(strings.NewReader(f.data))
+      if err != nil {
+        http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+        return
+      }
+      header.Set("Content-Length", strconv.Itoa(f.size))
+      io.Copy(rw, reader)
+      reader.Close()
     }
-    defer reader.Close()
-    header.Set("Content-Length", strconv.Itoa(f.uncompressedSize))
-    rw.WriteHeader(http.StatusOK)
-    io.Copy(rw, reader)
   }
 }
 

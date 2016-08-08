@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"flag"
 	"go/format"
-	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -16,11 +15,12 @@ import (
 )
 
 type file struct {
-	name             string
-	data             string
-	mime             string
-	mtime            time.Time
-	uncompressedSize int64
+	name  string
+	data  string
+	mime  string
+	mtime time.Time
+	// size is the result size before compression. If 0, it means the data is uncompressed
+	size int64
 }
 
 func processDir(c chan [2]string, dir string, parents []string) {
@@ -67,6 +67,7 @@ func main() {
 
 	files := make([]*file, 0, 32)
 	var b bytes.Buffer
+	var b2 bytes.Buffer
 	for asset := range c {
 		f, err := os.Open(asset[0])
 		if err != nil {
@@ -76,19 +77,33 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		writer, _ := gzip.NewWriterLevel(&b, gzip.BestCompression)
-
-		if _, err = io.Copy(writer, f); err != nil {
+		if _, err := b.ReadFrom(f); err != nil {
 			log.Fatal(err)
 		}
-		files = append(files, &file{
-			name:             asset[1],
-			data:             b.String(),
-			mime:             mime.TypeByExtension(filepath.Ext(asset[0])),
-			mtime:            stat.ModTime(),
-			uncompressedSize: stat.Size(),
-		})
+		f.Close()
+		writer, _ := gzip.NewWriterLevel(&b2, gzip.BestCompression)
+		if _, err := writer.Write(b.Bytes()); err != nil {
+			log.Fatal(err)
+		}
+		writer.Close()
+		if b2.Len() < b.Len() {
+			files = append(files, &file{
+				name:             asset[1],
+				data:             b2.String(),
+				mime:             mime.TypeByExtension(filepath.Ext(asset[0])),
+				mtime:            stat.ModTime(),
+				size: stat.Size(),
+			})
+		} else {
+			files = append(files, &file{
+				name:  asset[1],
+				data:  b.String(),
+				mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
+				mtime: stat.ModTime(),
+			})
+		}
 		b.Reset()
+		b2.Reset()
 	}
 	if err := GenerateTemplate(&b, packageName, files); err != nil {
 		log.Fatal(err)
