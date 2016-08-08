@@ -57,7 +57,7 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
     header.Set("Content-Length", strconv.Itoa(len(f.data)))
     io.WriteString(rw, f.data)
   } else {
-    if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+    if header.Get("Content-Encoding") == "" && strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
       header.Set("Content-Encoding", "gzip")
       header.Set("Content-Length", strconv.Itoa(len(f.data)))
       io.WriteString(rw, f.data)
@@ -70,10 +70,10 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
   }
 }
 
-// Server is an http.Handler that serves the embedded files
+// Server is simply ServeHTTP but wrapped in http.HandlerFunc so it can be passed into net/http functions directly.
 var Server http.Handler = http.HandlerFunc(ServeHTTP)
 
-// Open allows you to read an embedded file directly.
+// Open allows you to read an embedded file directly. It will return a decompressing `Reader` if the file is embedded in compressed format
 func Open(name string) (io.Reader, error) {
   f, ok := files[name]
   if !ok {
@@ -87,9 +87,9 @@ func Open(name string) (io.Reader, error) {
   }
 }
 
-// MTime returns the time a specific file was last modified
+// ModTime returns the modification file of the original file.
 // Useful for caching purposes
-func MTime(file string) (t time.Time) {
+func ModTime(file string) (t time.Time) {
   if f, ok := files[file]; ok {
     t = f.mtime
   }
