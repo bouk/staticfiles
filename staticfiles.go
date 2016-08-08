@@ -41,7 +41,7 @@ func processDir(c chan [2]string, dir string, parents []string) {
 
 func main() {
 	var outputFile, packageName string
-	flag.StringVar(&outputFile, "o", "files.go", "File to write results to.")
+	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
 	flag.StringVar(&packageName, "p", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
 	flag.Parse()
 	if flag.NArg() != 1 {

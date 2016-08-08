@@ -4,12 +4,12 @@ package <%= pkg %>
 
 import (
   "compress/gzip"
+  "fmt"
   "io"
   "net/http"
   "strconv"
   "strings"
   "time"
-  "unsafe"
 )
 
 type file struct {
@@ -29,10 +29,15 @@ var files = map[string]*file{<% for _, f := range files { %>
   },<% } %>
 }
 
+// NotFound is called when no asset is found.
+// It defaults to http.NotFound but can be overwritten
+var NotFound = http.NotFound
+
+// ServeHTTP serves a request, attempting to reply with an embedded file.
 func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
   f, ok := files[strings.TrimPrefix(req.URL.Path, "/")]
   if !ok {
-    http.NotFound(rw, req)
+    NotFound(rw, req)
     return
   }
   header := rw.Header()
@@ -45,30 +50,43 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
   }
   header.Set("Content-Type", f.mime)
 
-  // unsafe hack to avoid a copy
-  b := *(*[]byte)(unsafe.Pointer(&f.data))
   // Check if the asset is compressed in the binary
   if f.size == 0 {
-    header.Set("Content-Length", strconv.Itoa(len(b)))
-    rw.Write(b)
+    header.Set("Content-Length", strconv.Itoa(len(f.data)))
+    io.WriteString(rw, f.data)
   } else {
     if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
       header.Set("Content-Encoding", "gzip")
-      header.Set("Content-Length", strconv.Itoa(len(b)))
-      rw.Write(b)
+      header.Set("Content-Length", strconv.Itoa(len(f.data)))
+      io.WriteString(rw, f.data)
     } else {
-      reader, err := gzip.NewReader(strings.NewReader(f.data))
-      if err != nil {
-        http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-        return
-      }
       header.Set("Content-Length", strconv.Itoa(f.size))
+      reader, _ := gzip.NewReader(strings.NewReader(f.data))
       io.Copy(rw, reader)
       reader.Close()
     }
   }
 }
 
+// Server is an http.Handler that serves the embedded files
+var Server http.Handler = http.HandlerFunc(ServeHTTP)
+
+// Open allows you to read an embedded file directly.
+func Open(name string) (io.Reader, error) {
+  f, ok := files[name]
+  if !ok {
+    return nil, fmt.Errorf("Asset %s not found", name)
+  }
+
+  if f.size == 0 {
+    return strings.NewReader(f.data), nil
+  } else {
+    return gzip.NewReader(strings.NewReader(f.data))
+  }
+}
+
+// MTime returns the time a specific file was last modified
+// Useful for caching purposes
 func MTime(file string) (t time.Time) {
   if f, ok := files[file]; ok {
     t = f.mtime
