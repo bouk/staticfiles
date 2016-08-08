@@ -1,0 +1,70 @@
+<%! func GenerateTemplate(w io.Writer, pkg string, files []*file) error %>
+<%% import "fmt" %%>
+package <%= pkg %>
+
+import (
+  "compress/gzip"
+  "io"
+  "net/http"
+  "strconv"
+  "strings"
+  "time"
+  "unsafe"
+)
+
+type file struct {
+  data             string
+  mime             string
+  mtime            time.Time
+  uncompressedSize int
+}
+
+var files = map[string]*file{<% for _, f := range files { %>
+  <%== fmt.Sprintf("%q", f.name) %>: {
+    data: <%== fmt.Sprintf("%q", f.data) %>,
+    mime: <%== fmt.Sprintf("%q", f.mime) %>,
+    mtime: time.Unix(<%= f.mtime.Unix() %>, 0),
+    uncompressedSize: <%= f.uncompressedSize %>,
+  },
+<% } %>}
+
+func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+  f, ok := files[strings.TrimPrefix(req.URL.Path, "/")]
+  if !ok {
+    http.NotFound(rw, req)
+    return
+  }
+  header := rw.Header()
+  if !f.mtime.IsZero() {
+    if t, err := time.Parse(http.TimeFormat, req.Header.Get("If-Modified-Since")); err == nil && f.mtime.Before(t.Add(1*time.Second)) {
+      rw.WriteHeader(http.StatusNotModified)
+      return
+    }
+    header.Set("Last-Modified", f.mtime.UTC().Format(http.TimeFormat))
+  }
+  header.Set("Content-Type", f.mime)
+  if strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+    b := *(*[]byte)(unsafe.Pointer(&f.data))
+    header.Set("Content-Encoding", "gzip")
+    header.Set("Content-Length", strconv.Itoa(len(b)))
+    rw.WriteHeader(http.StatusOK)
+    rw.Write(b)
+  } else {
+    reader, err := gzip.NewReader(strings.NewReader(f.data))
+    if err != nil {
+      http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+      return
+    }
+    defer reader.Close()
+    header.Set("Content-Length", strconv.Itoa(f.uncompressedSize))
+    rw.WriteHeader(http.StatusOK)
+    io.Copy(rw, reader)
+  }
+}
+
+func MTime(file string) (t time.Time) {
+  if f, ok := files[file]; ok {
+    t = f.mtime
+  }
+  return
+}
