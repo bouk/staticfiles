@@ -46,7 +46,7 @@ func processDir(c chan [2]string, dir string, parents []string) {
 func main() {
 	var outputFile, packageName, buildTags string
 	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
-	flag.StringVar(&packageName, "p", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
+	flag.StringVar(&packageName, "package", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
 	flag.StringVar(&buildTags, "build-tags", "", "Build tags to write to the file")
 	flag.Parse()
 	if flag.NArg() != 1 {

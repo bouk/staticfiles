@@ -6,6 +6,8 @@ It has some clever tricks, like only compressing a file if it actually makes the
 
 I recommend creating a separate package inside your project to serve as the container for the embedded files.
 
+Staticfiles ignores any hidden files and directories (anything that starts with `.`).
+
 ## Example
 
 For an example of how to use the resulting package, check out `example/example.go`. You can also see the API it generates at [godoc.org](https://godoc.org/github.com/bouk/staticfiles/files).
@@ -28,17 +30,21 @@ files/files.go: static/*
 The `staticfiles` command accept the following arguments:
 
 ```
--build-tags string
+--build-tags string
       Build tags to write to the file
 -o string
       File to write results to. (default "staticfiles.go")
--p string
+--package string
       Package name of the resulting file. Defaults to name of the resulting file directory
 ```
 
+## Local development mode
+
+While Staticfiles doesn't have a built-in local development mode, it does support build tags which makes implementing one very easy. Simply run `staticfiles` with `--build-tags="!dev"` and add a file in the same directory that implements the same API, but uses `http.FileServer` under the hood. You can find an example in `files/files_dev.go`. Once you have that set up you can simply do `go build --tags="dev"` to compile the development version. In the way I set it up, you could even do `go build --tags="dev" -ldflags="-X github.com/bouk/staticfiles/files.staticDir=$(pwd)/static"` to set the static file directory to a specific path.
+
 ## API
 
-The resulting file will contain the following functions an variables:
+The resulting file will contain the following functions and variables:
 
 ### `func ServeHTTP(http.ResponseWriter, *http.Request)`
 
@@ -54,7 +60,7 @@ The resulting file will contain the following functions an variables:
 
 ### `NotFound http.Handler`
 
-`NotFound` is used to respond to a request when no file was found that matches the request. It default to `http.NotFound`, but can be overwritten.
+`NotFound` is used to respond to a request when no file was found that matches the request. It defaults to `http.NotFound`, but can be overwritten.
 
 ### `Server http.Handler`
 

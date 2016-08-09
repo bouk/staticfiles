@@ -13,6 +13,7 @@ import (
 var staticDir = "static"
 
 var (
+	NotFound  = http.NotFound
 	Server    = http.FileServer(http.Dir(staticDir))
 	ServeHTTP = Server.ServeHTTP
 )

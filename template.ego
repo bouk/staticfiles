@@ -14,7 +14,7 @@ import (
   "time"
 )
 
-type file struct {
+type staticFilesFile struct {
   data             string
   mime             string
   mtime            time.Time
@@ -22,7 +22,7 @@ type file struct {
   size int
 }
 
-var files = map[string]*file{<% for _, f := range files { %>
+var staticFiles = map[string]*staticFilesFile{<% for _, f := range files { %>
   <%== fmt.Sprintf("%q", f.name) %>: {
     data: <%== fmt.Sprintf("%q", f.data) %>,
     mime: <%== fmt.Sprintf("%q", f.mime) %>,
@@ -37,7 +37,7 @@ var NotFound = http.NotFound
 
 // ServeHTTP serves a request, attempting to reply with an embedded file.
 func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-  f, ok := files[strings.TrimPrefix(req.URL.Path, "/")]
+  f, ok := staticFiles[strings.TrimPrefix(req.URL.Path, "/")]
   if !ok {
     NotFound(rw, req)
     return
@@ -75,7 +75,7 @@ var Server http.Handler = http.HandlerFunc(ServeHTTP)
 
 // Open allows you to read an embedded file directly. It will return a decompressing `Reader` if the file is embedded in compressed format
 func Open(name string) (io.Reader, error) {
-  f, ok := files[name]
+  f, ok := staticFiles[name]
   if !ok {
     return nil, fmt.Errorf("Asset %s not found", name)
   }
@@ -90,7 +90,7 @@ func Open(name string) (io.Reader, error) {
 // ModTime returns the modification file of the original file.
 // Useful for caching purposes
 func ModTime(file string) (t time.Time) {
-  if f, ok := files[file]; ok {
+  if f, ok := staticFiles[file]; ok {
     t = f.mtime
   }
   return
