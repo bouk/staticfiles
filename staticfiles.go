@@ -11,6 +11,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
+	"sort"
 	"strings"
 	"time"
 )
@@ -43,6 +45,12 @@ func processDir(c chan [2]string, dir string, parents []string) {
 	}
 }
 
+type fileSlice []*file
+
+func (a fileSlice) Len() int           { return len(a) }
+func (a fileSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a fileSlice) Less(i, j int) bool { return a[i].name < a[j].name }
+
 func main() {
 	var outputFile, packageName, buildTags string
 	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
@@ -70,46 +78,65 @@ func main() {
 		close(c)
 	}()
 
-	files := make([]*file, 0, 32)
-	var b bytes.Buffer
-	var b2 bytes.Buffer
-	for asset := range c {
-		f, err := os.Open(asset[0])
-		if err != nil {
-			log.Fatal(err)
+	// Used to communicate back all the files that were read and compressed.
+	results := make(chan fileSlice)
+	process := func() {
+		var b bytes.Buffer
+		var b2 bytes.Buffer
+		files := make(fileSlice, 0, 32)
+		for asset := range c {
+			f, err := os.Open(asset[0])
+			if err != nil {
+				log.Fatal(err)
+			}
+			stat, err := f.Stat()
+			if err != nil {
+				log.Fatal(err)
+			}
+			if _, err := b.ReadFrom(f); err != nil {
+				log.Fatal(err)
+			}
+			f.Close()
+			writer, _ := gzip.NewWriterLevel(&b2, gzip.BestCompression)
+			if _, err := writer.Write(b.Bytes()); err != nil {
+				log.Fatal(err)
+			}
+			writer.Close()
+			if b2.Len() < b.Len() {
+				files = append(files, &file{
+					name:  asset[1],
+					data:  b2.String(),
+					mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
+					mtime: stat.ModTime(),
+					size:  stat.Size(),
+				})
+			} else {
+				files = append(files, &file{
+					name:  asset[1],
+					data:  b.String(),
+					mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
+					mtime: stat.ModTime(),
+				})
+			}
+			b.Reset()
+			b2.Reset()
 		}
-		stat, err := f.Stat()
-		if err != nil {
-			log.Fatal(err)
-		}
-		if _, err := b.ReadFrom(f); err != nil {
-			log.Fatal(err)
-		}
-		f.Close()
-		writer, _ := gzip.NewWriterLevel(&b2, gzip.BestCompression)
-		if _, err := writer.Write(b.Bytes()); err != nil {
-			log.Fatal(err)
-		}
-		writer.Close()
-		if b2.Len() < b.Len() {
-			files = append(files, &file{
-				name:  asset[1],
-				data:  b2.String(),
-				mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
-				mtime: stat.ModTime(),
-				size:  stat.Size(),
-			})
-		} else {
-			files = append(files, &file{
-				name:  asset[1],
-				data:  b.String(),
-				mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
-				mtime: stat.ModTime(),
-			})
-		}
-		b.Reset()
-		b2.Reset()
+		results <- files
 	}
+	// Concurrency! Read and compress in parallel, and combine all the slices at the end.
+	concurrency := runtime.NumCPU()
+	for i := 0; i < concurrency; i++ {
+		go process()
+	}
+	var files fileSlice
+	for i := 0; i < concurrency; i++ {
+		files = append(files, (<-results)...)
+	}
+
+	// Should sort to make sure the output is stable
+	sort.Sort(files)
+
+	var b bytes.Buffer
 	if err := GenerateTemplate(&b, packageName, files, buildTags); err != nil {
 		log.Fatal(err)
 	}
