@@ -18,7 +18,7 @@ var (
 	ServeHTTP = Server.ServeHTTP
 )
 
-func Open(name string) (io.Reader, error) {
+func Open(name string) (io.ReadCloser, error) {
 	return os.Open(filepath.Join(staticDir, name))
 }
 

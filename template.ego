@@ -8,6 +8,7 @@ import (
   "compress/gzip"
   "fmt"
   "io"
+  "io/ioutil"
   "net/http"
   "strconv"
   "strings"
@@ -73,15 +74,16 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 // Server is simply ServeHTTP but wrapped in http.HandlerFunc so it can be passed into net/http functions directly.
 var Server http.Handler = http.HandlerFunc(ServeHTTP)
 
-// Open allows you to read an embedded file directly. It will return a decompressing `Reader` if the file is embedded in compressed format
-func Open(name string) (io.Reader, error) {
+// Open allows you to read an embedded file directly. It will return a decompressing Reader if the file is embedded in compressed format.
+// You should close the Reader after you're done with it.
+func Open(name string) (io.ReadCloser, error) {
   f, ok := staticFiles[name]
   if !ok {
     return nil, fmt.Errorf("Asset %s not found", name)
   }
 
   if f.size == 0 {
-    return strings.NewReader(f.data), nil
+    return ioutil.NopCloser(strings.NewReader(f.data)), nil
   } else {
     return gzip.NewReader(strings.NewReader(f.data))
   }

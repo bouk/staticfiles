@@ -50,9 +50,9 @@ The resulting file will contain the following functions and variables:
 
 `ServeHTTP` will attempt to serve an embedded file, responding with gzip compression if the clients supports it and the embedded file is compressed.
 
-### `func Open(name string) (io.Reader, error)`
+### `func Open(name string) (io.ReadCloser, error)`
 
-`Open` allows you to read an embedded file directly. It will return a decompressing `Reader` if the file is embedded in compressed format.
+`Open` allows you to read an embedded file directly. It will return a decompressing `Reader` if the file is embedded in compressed format. You should close the `Reader` after you're done with it.
 
 ### `func ModTime(name string) time.Time`
 
