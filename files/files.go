@@ -1,3 +1,5 @@
+// +build !dev
+
 package files
 
 import (
