@@ -5,7 +5,6 @@ package main
 
 import (
 	"fmt"
-	"html"
 	"io"
 )
 
@@ -19,7 +18,7 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:3
 		_, _ = io.WriteString(w, "\n// +build ")
 //line template.ego:3
-		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", buildTags)))
+		_, _ = fmt.Fprintf(w, "%v", buildTags)
 //line template.ego:4
 		_, _ = io.WriteString(w, "\n\n")
 //line template.ego:5
@@ -27,7 +26,7 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:5
 	_, _ = io.WriteString(w, "package ")
 //line template.ego:5
-	_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", pkg)))
+	_, _ = fmt.Fprintf(w, "%v", pkg)
 //line template.ego:6
 	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"io/ioutil\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype staticFilesFile struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n}\n\nvar staticFiles = map[string]*staticFilesFile{")
 //line template.ego:26
@@ -47,11 +46,11 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:29
 		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
 //line template.ego:30
-		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.mtime.Unix())))
+		_, _ = fmt.Fprintf(w, "%v", f.mtime.Unix())
 //line template.ego:30
 		_, _ = io.WriteString(w, ", 0),\n    size: ")
 //line template.ego:31
-		_, _ = io.WriteString(w, html.EscapeString(fmt.Sprintf("%v", f.size)))
+		_, _ = fmt.Fprintf(w, "%v", f.size)
 //line template.ego:31
 		_, _ = io.WriteString(w, ",\n  },")
 //line template.ego:32

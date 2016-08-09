@@ -1,8 +1,8 @@
 <%! func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error %>
 <%% import "fmt" %%><% if buildTags != "" { %>
-// +build <%= buildTags %>
+// +build <%== buildTags %>
 
-<% } %>package <%= pkg %>
+<% } %>package <%== pkg %>
 
 import (
   "compress/gzip"
@@ -27,8 +27,8 @@ var staticFiles = map[string]*staticFilesFile{<% for _, f := range files { %>
   <%== fmt.Sprintf("%q", f.name) %>: {
     data: <%== fmt.Sprintf("%q", f.data) %>,
     mime: <%== fmt.Sprintf("%q", f.mime) %>,
-    mtime: time.Unix(<%= f.mtime.Unix() %>, 0),
-    size: <%= f.size %>,
+    mtime: time.Unix(<%== f.mtime.Unix() %>, 0),
+    size: <%== f.size %>,
   },<% } %>
 }
 
