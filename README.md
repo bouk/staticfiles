@@ -1,12 +1,16 @@
 # staticfiles
 
-Staticfiles allows you to embed a directory of files into your Go binary. It is optimized for performance and file size, and automatically compresses everything before embedding it.
+Staticfiles allows you to embed a directory of files into your Go binary. It is optimized for performance and file size, and automatically compresses everything before embedding it. Here are some of its features:
+
+* Compresses files, to make sure the resulting binary isn't bloated. It only compresses files that are actually smaller when `gzip`ped.
+* Serves files `gzip`ped (while still allowing clients that don't support it to be served).
+* Ignores hidden files (anything that starts with `.`).
+* Fast. The command-line tool reads and compresses files in parallel, and the resulting Go file serves files very quickly, avoiding unnecessary allocations.
+* No built-in development mode, but makes it very easy to implement one (see [local development mode](#local-development-mode)).
 
 It has some clever tricks, like only compressing a file if it actually makes the binary smaller (PNG files won't be compressed, as they already are and compressing them again will make them bigger).
 
 I recommend creating a separate package inside your project to serve as the container for the embedded files.
-
-Staticfiles ignores any hidden files and directories (anything that starts with `.`).
 
 ## Example
 
