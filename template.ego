@@ -24,9 +24,9 @@ type staticFilesFile struct {
 }
 
 var staticFiles = map[string]*staticFilesFile{<% for _, f := range files { %>
-  <%== fmt.Sprintf("%q", f.name) %>: {
-    data: <%== fmt.Sprintf("%q", f.data) %>,
-    mime: <%== fmt.Sprintf("%q", f.mime) %>,
+  <% _, _ = fmt.Fprintf(w, "%q", f.name) %>: {
+    data: <% _, _ = fmt.Fprintf(w, "%q", f.data) %>,
+    mime: <% _, _ = fmt.Fprintf(w, "%q", f.mime) %>,
     mtime: time.Unix(<%== f.mtime.Unix() %>, 0),
     size: <%== f.size %>,
   },<% } %>

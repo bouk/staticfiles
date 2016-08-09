@@ -34,15 +34,15 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:27
 		_, _ = io.WriteString(w, "\n  ")
 //line template.ego:27
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.name))
+		_, _ = fmt.Fprintf(w, "%q", f.name)
 //line template.ego:27
 		_, _ = io.WriteString(w, ": {\n    data: ")
 //line template.ego:28
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.data))
+		_, _ = fmt.Fprintf(w, "%q", f.data)
 //line template.ego:28
 		_, _ = io.WriteString(w, ",\n    mime: ")
 //line template.ego:29
-		_, _ = fmt.Fprintf(w, "%v", fmt.Sprintf("%q", f.mime))
+		_, _ = fmt.Fprintf(w, "%q", f.mime)
 //line template.ego:29
 		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
 //line template.ego:30
