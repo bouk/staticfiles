@@ -44,7 +44,7 @@ The `staticfiles` command accept the following arguments:
 
 ## Local development mode
 
-While Staticfiles doesn't have a built-in local development mode, it does support build tags which makes implementing one very easy. Simply run `staticfiles` with `--build-tags="!dev"` and add a file in the same directory that implements the same API, but uses `http.FileServer` under the hood. You can find an example in `files/files_dev.go`. Once you have that set up you can simply do `go build --tags="dev"` to compile the development version. In the way I set it up, you could even do `go build --tags="dev" -ldflags="-X github.com/bouk/staticfiles/files.staticDir=$(pwd)/static"` to set the static file directory to a specific path.
+While Staticfiles doesn't have a built-in local development mode, it does support build tags which makes implementing one very easy. Simply run `staticfiles` with `--build-tags="!dev"` and add a file in the same directory that implements the same API, but with `//+build dev` at the that and using `http.FileServer` under the hood. You can find an example in `files/files_dev.go`. Once you have that set up you can simply do `go build --tags="dev"` to compile the development version. In the way I set it up, you could even do `go build --tags="dev" -ldflags="-X github.com/bouk/staticfiles/files.staticDir=$(pwd)/static"` to set the static file directory to a specific path.
 
 ## API
 
