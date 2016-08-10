@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
+	"path"
 	"time"
 )
 
@@ -41,4 +41,24 @@ func Hash(name string) (s string) {
 	hash := sha256.New()
 	io.Copy(hash, f)
 	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func OpenGlob(name string) ([]io.ReadCloser, error) {
+	readers := make([]io.ReadCloser, 0)
+	for file := range staticFiles {
+		matches, err := path.Match(name, file)
+		if err != nil {
+			continue
+		}
+		if matches {
+			reader, err := Open(file)
+			if err == nil && reader != nil {
+				readers = append(readers, reader)
+			}
+		}
+	}
+	if len(readers) == 0 {
+		return nil, fmt.Errorf("No assets found that match.")
+	}
+	return readers, nil
 }

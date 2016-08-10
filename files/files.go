@@ -8,7 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -129,7 +129,7 @@ func Hash(file string) (s string) {
 func OpenGlob(name string) ([]io.ReadCloser, error) {
 	readers := make([]io.ReadCloser, 0)
 	for file := range staticFiles {
-		matches, err := filepath.Match(name, file)
+		matches, err := path.Match(name, file)
 		if err != nil {
 			continue
 		}
