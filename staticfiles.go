@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"flag"
 	"go/format"
+	"io"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -24,6 +26,7 @@ type file struct {
 	mtime time.Time
 	// size is the result size before compression. If 0, it means the data is uncompressed
 	size int64
+	hash []byte
 }
 
 func processDir(c chan [2]string, dir string, parents []string) {
@@ -83,6 +86,7 @@ func main() {
 	process := func() {
 		var b bytes.Buffer
 		var b2 bytes.Buffer
+		hash := sha256.New()
 		files := make(fileSlice, 0, 32)
 		for asset := range c {
 			f, err := os.Open(asset[0])
@@ -97,11 +101,12 @@ func main() {
 				log.Fatal(err)
 			}
 			f.Close()
-			writer, _ := gzip.NewWriterLevel(&b2, gzip.BestCompression)
+			compressedWriter, _ := gzip.NewWriterLevel(&b2, gzip.BestCompression)
+			writer := io.MultiWriter(compressedWriter, hash)
 			if _, err := writer.Write(b.Bytes()); err != nil {
 				log.Fatal(err)
 			}
-			writer.Close()
+			compressedWriter.Close()
 			if b2.Len() < b.Len() {
 				files = append(files, &file{
 					name:  asset[1],
@@ -109,6 +114,7 @@ func main() {
 					mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
 					mtime: stat.ModTime(),
 					size:  stat.Size(),
+					hash:  hash.Sum(nil),
 				})
 			} else {
 				files = append(files, &file{
@@ -116,10 +122,12 @@ func main() {
 					data:  b.String(),
 					mime:  mime.TypeByExtension(filepath.Ext(asset[0])),
 					mtime: stat.ModTime(),
+					hash:  hash.Sum(nil),
 				})
 			}
 			b.Reset()
 			b2.Reset()
+			hash.Reset()
 		}
 		results <- files
 	}

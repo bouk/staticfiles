@@ -1,5 +1,5 @@
 <%! func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error %>
-<%% import "fmt" %%><% if buildTags != "" { %>
+<%% import "fmt" %%><%% import "encoding/hex" %%><% if buildTags != "" { %>
 // +build <%== buildTags %>
 
 <% } %>package <%== pkg %>
@@ -21,11 +21,14 @@ type staticFilesFile struct {
   mtime            time.Time
   // size is the size before compression. If 0, it means the data is uncompressed
   size int
+  // hash is a sha256 hash of the file contents. Used for the Etag, and useful for caching
+  hash string
 }
 
 var staticFiles = map[string]*staticFilesFile{<% for _, f := range files { %>
   <% _, _ = fmt.Fprintf(w, "%q", f.name) %>: {
     data: <% _, _ = fmt.Fprintf(w, "%q", f.data) %>,
+    hash: <% _, _ = fmt.Fprintf(w, "%q",  hex.EncodeToString(f.hash)) %>,
     mime: <% _, _ = fmt.Fprintf(w, "%q", f.mime) %>,
     mtime: time.Unix(<%== f.mtime.Unix() %>, 0),
     size: <%== f.size %>,
@@ -44,6 +47,13 @@ func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
     return
   }
   header := rw.Header()
+  if f.hash != "" {
+    if hash := req.Header.Get("If-None-Match"); hash == f.hash {
+      rw.WriteHeader(http.StatusNotModified)
+      return
+    }
+    header.Set("ETag", f.hash)
+  }
   if !f.mtime.IsZero() {
     if t, err := time.Parse(http.TimeFormat, req.Header.Get("If-Modified-Since")); err == nil && f.mtime.Before(t.Add(1*time.Second)) {
       rw.WriteHeader(http.StatusNotModified)
@@ -89,11 +99,22 @@ func Open(name string) (io.ReadCloser, error) {
   }
 }
 
-// ModTime returns the modification file of the original file.
+// ModTime returns the modification time of the original file.
 // Useful for caching purposes
+// Returns zero time if the file is not in the bundle
 func ModTime(file string) (t time.Time) {
   if f, ok := staticFiles[file]; ok {
     t = f.mtime
+  }
+  return
+}
+
+// Hash returns the hex-encoded SHA256 hash of the original file
+// Used for the Etag, and useful for caching
+// Returns an empty string if the file is not in the bundle
+func Hash(file string) (s string) {
+  if f, ok := staticFiles[file]; ok {
+    s = f.hash
   }
   return
 }

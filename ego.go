@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 )
@@ -28,34 +29,38 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:5
 	_, _ = fmt.Fprintf(w, "%v", pkg)
 //line template.ego:6
-	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"io/ioutil\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype staticFilesFile struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n}\n\nvar staticFiles = map[string]*staticFilesFile{")
-//line template.ego:26
+	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"io/ioutil\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype staticFilesFile struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n  // hash is a sha256 hash of the file contents. Used for the Etag, and useful for caching\n  hash string\n}\n\nvar staticFiles = map[string]*staticFilesFile{")
+//line template.ego:28
 	for _, f := range files {
-//line template.ego:27
+//line template.ego:29
 		_, _ = io.WriteString(w, "\n  ")
-//line template.ego:27
+//line template.ego:29
 		_, _ = fmt.Fprintf(w, "%q", f.name)
-//line template.ego:27
+//line template.ego:29
 		_, _ = io.WriteString(w, ": {\n    data: ")
-//line template.ego:28
+//line template.ego:30
 		_, _ = fmt.Fprintf(w, "%q", f.data)
-//line template.ego:28
+//line template.ego:30
+		_, _ = io.WriteString(w, ",\n    hash: ")
+//line template.ego:31
+		_, _ = fmt.Fprintf(w, "%q", hex.EncodeToString(f.hash))
+//line template.ego:31
 		_, _ = io.WriteString(w, ",\n    mime: ")
-//line template.ego:29
-		_, _ = fmt.Fprintf(w, "%q", f.mime)
-//line template.ego:29
-		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
-//line template.ego:30
-		_, _ = fmt.Fprintf(w, "%v", f.mtime.Unix())
-//line template.ego:30
-		_, _ = io.WriteString(w, ", 0),\n    size: ")
-//line template.ego:31
-		_, _ = fmt.Fprintf(w, "%v", f.size)
-//line template.ego:31
-		_, _ = io.WriteString(w, ",\n  },")
 //line template.ego:32
-	}
+		_, _ = fmt.Fprintf(w, "%q", f.mime)
+//line template.ego:32
+		_, _ = io.WriteString(w, ",\n    mtime: time.Unix(")
 //line template.ego:33
-	_, _ = io.WriteString(w, "\n}\n\n// NotFound is called when no asset is found.\n// It defaults to http.NotFound but can be overwritten\nvar NotFound = http.NotFound\n\n// ServeHTTP serves a request, attempting to reply with an embedded file.\nfunc ServeHTTP(rw http.ResponseWriter, req *http.Request) {\n  f, ok := staticFiles[strings.TrimPrefix(req.URL.Path, \"/\")]\n  if !ok {\n    NotFound(rw, req)\n    return\n  }\n  header := rw.Header()\n  if !f.mtime.IsZero() {\n    if t, err := time.Parse(http.TimeFormat, req.Header.Get(\"If-Modified-Since\")); err == nil && f.mtime.Before(t.Add(1*time.Second)) {\n      rw.WriteHeader(http.StatusNotModified)\n      return\n    }\n    header.Set(\"Last-Modified\", f.mtime.UTC().Format(http.TimeFormat))\n  }\n  header.Set(\"Content-Type\", f.mime)\n\n  // Check if the asset is compressed in the binary\n  if f.size == 0 {\n    header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n    io.WriteString(rw, f.data)\n  } else {\n    if header.Get(\"Content-Encoding\") == \"\" && strings.Contains(req.Header.Get(\"Accept-Encoding\"), \"gzip\") {\n      header.Set(\"Content-Encoding\", \"gzip\")\n      header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n      io.WriteString(rw, f.data)\n    } else {\n      header.Set(\"Content-Length\", strconv.Itoa(f.size))\n      reader, _ := gzip.NewReader(strings.NewReader(f.data))\n      io.Copy(rw, reader)\n      reader.Close()\n    }\n  }\n}\n\n// Server is simply ServeHTTP but wrapped in http.HandlerFunc so it can be passed into net/http functions directly.\nvar Server http.Handler = http.HandlerFunc(ServeHTTP)\n\n// Open allows you to read an embedded file directly. It will return a decompressing Reader if the file is embedded in compressed format.\n// You should close the Reader after you're done with it.\nfunc Open(name string) (io.ReadCloser, error) {\n  f, ok := staticFiles[name]\n  if !ok {\n    return nil, fmt.Errorf(\"Asset %s not found\", name)\n  }\n\n  if f.size == 0 {\n    return ioutil.NopCloser(strings.NewReader(f.data)), nil\n  } else {\n    return gzip.NewReader(strings.NewReader(f.data))\n  }\n}\n\n// ModTime returns the modification file of the original file.\n// Useful for caching purposes\nfunc ModTime(file string) (t time.Time) {\n  if f, ok := staticFiles[file]; ok {\n    t = f.mtime\n  }\n  return\n}\n")
+		_, _ = fmt.Fprintf(w, "%v", f.mtime.Unix())
+//line template.ego:33
+		_, _ = io.WriteString(w, ", 0),\n    size: ")
+//line template.ego:34
+		_, _ = fmt.Fprintf(w, "%v", f.size)
+//line template.ego:34
+		_, _ = io.WriteString(w, ",\n  },")
+//line template.ego:35
+	}
+//line template.ego:36
+	_, _ = io.WriteString(w, "\n}\n\n// NotFound is called when no asset is found.\n// It defaults to http.NotFound but can be overwritten\nvar NotFound = http.NotFound\n\n// ServeHTTP serves a request, attempting to reply with an embedded file.\nfunc ServeHTTP(rw http.ResponseWriter, req *http.Request) {\n  f, ok := staticFiles[strings.TrimPrefix(req.URL.Path, \"/\")]\n  if !ok {\n    NotFound(rw, req)\n    return\n  }\n  header := rw.Header()\n  if f.hash != \"\" {\n    if hash := req.Header.Get(\"If-None-Match\"); hash == f.hash {\n      rw.WriteHeader(http.StatusNotModified)\n      return\n    }\n    header.Set(\"ETag\", f.hash)\n  }\n  if !f.mtime.IsZero() {\n    if t, err := time.Parse(http.TimeFormat, req.Header.Get(\"If-Modified-Since\")); err == nil && f.mtime.Before(t.Add(1*time.Second)) {\n      rw.WriteHeader(http.StatusNotModified)\n      return\n    }\n    header.Set(\"Last-Modified\", f.mtime.UTC().Format(http.TimeFormat))\n  }\n  header.Set(\"Content-Type\", f.mime)\n\n  // Check if the asset is compressed in the binary\n  if f.size == 0 {\n    header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n    io.WriteString(rw, f.data)\n  } else {\n    if header.Get(\"Content-Encoding\") == \"\" && strings.Contains(req.Header.Get(\"Accept-Encoding\"), \"gzip\") {\n      header.Set(\"Content-Encoding\", \"gzip\")\n      header.Set(\"Content-Length\", strconv.Itoa(len(f.data)))\n      io.WriteString(rw, f.data)\n    } else {\n      header.Set(\"Content-Length\", strconv.Itoa(f.size))\n      reader, _ := gzip.NewReader(strings.NewReader(f.data))\n      io.Copy(rw, reader)\n      reader.Close()\n    }\n  }\n}\n\n// Server is simply ServeHTTP but wrapped in http.HandlerFunc so it can be passed into net/http functions directly.\nvar Server http.Handler = http.HandlerFunc(ServeHTTP)\n\n// Open allows you to read an embedded file directly. It will return a decompressing Reader if the file is embedded in compressed format.\n// You should close the Reader after you're done with it.\nfunc Open(name string) (io.ReadCloser, error) {\n  f, ok := staticFiles[name]\n  if !ok {\n    return nil, fmt.Errorf(\"Asset %s not found\", name)\n  }\n\n  if f.size == 0 {\n    return ioutil.NopCloser(strings.NewReader(f.data)), nil\n  } else {\n    return gzip.NewReader(strings.NewReader(f.data))\n  }\n}\n\n// ModTime returns the modification time of the original file.\n// Useful for caching purposes\n// Returns zero time if the file is not in the bundle\nfunc ModTime(file string) (t time.Time) {\n  if f, ok := staticFiles[file]; ok {\n    t = f.mtime\n  }\n  return\n}\n\n// Hash returns the hex-encoded SHA256 hash of the original file\n// Used for the Etag, and useful for caching\n// Returns an empty string if the file is not in the bundle\nfunc Hash(file string) (s string) {\n  if f, ok := staticFiles[file]; ok {\n    s = f.hash\n  }\n  return\n}\n")
 	return nil
 }
