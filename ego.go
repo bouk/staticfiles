@@ -29,7 +29,7 @@ func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) 
 //line template.ego:5
 	_, _ = fmt.Fprintf(w, "%v", pkg)
 //line template.ego:6
-	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"io/ioutil\"\n  \"net/http\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n  \"path/filepath\"\n)\n\ntype staticFilesFile struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n  // hash is a sha256 hash of the file contents. Used for the Etag, and useful for caching\n  hash string\n}\n\nvar staticFiles = map[string]*staticFilesFile{")
+	_, _ = io.WriteString(w, "\n\nimport (\n  \"compress/gzip\"\n  \"fmt\"\n  \"io\"\n  \"io/ioutil\"\n  \"net/http\"\n  \"path/filepath\"\n  \"strconv\"\n  \"strings\"\n  \"time\"\n)\n\ntype staticFilesFile struct {\n  data             string\n  mime             string\n  mtime            time.Time\n  // size is the size before compression. If 0, it means the data is uncompressed\n  size int\n  // hash is a sha256 hash of the file contents. Used for the Etag, and useful for caching\n  hash string\n}\n\nvar staticFiles = map[string]*staticFilesFile{")
 //line template.ego:28
 	for _, f := range files {
 //line template.ego:29
