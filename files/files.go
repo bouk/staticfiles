@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -122,4 +123,25 @@ func Hash(file string) (s string) {
 		s = f.hash
 	}
 	return
+}
+
+// Slower than Open as it must cycle through every element in map. Open all files that match glob.
+func OpenGlob(name string) ([]io.ReadCloser, error) {
+	readers := make([]io.ReadCloser, 0)
+	for file := range staticFiles {
+		matches, err := path.Match(name, file)
+		if err != nil {
+			continue
+		}
+		if matches {
+			reader, err := Open(file)
+			if err == nil && reader != nil {
+				readers = append(readers, reader)
+			}
+		}
+	}
+	if len(readers) == 0 {
+		return nil, fmt.Errorf("No assets found that match.")
+	}
+	return readers, nil
 }
