@@ -77,7 +77,7 @@ func main() {
 	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
 	flag.StringVar(&packageName, "package", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
 	flag.StringVar(&buildTags, "build-tags", "", "Build tags to write to the file")
-	flag.StringVar(&excludeList, "exclude", "", "Comma-separated patterns to exclude. (e.g. *.scss, sass/ etc.)")
+	flag.StringVar(&excludeList, "exclude", "", "Comma-separated patterns to exclude. (e.g. '*.scss,templates/')")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		log.Println("Please pass in a directory to process")
