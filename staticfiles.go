@@ -29,7 +29,20 @@ type file struct {
 	hash []byte
 }
 
-func processDir(c chan [2]string, dir string, parents []string) {
+func skipFile(file string, excludeSlice []string) bool {
+	for _, pattern := range excludeSlice {
+		matched, err := path.Match(pattern, file)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if matched {
+			return true
+		}
+	}
+	return false
+}
+
+func processDir(c chan [2]string, dir string, parents []string, excludeSlice []string) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Fatal(err)
@@ -38,10 +51,15 @@ func processDir(c chan [2]string, dir string, parents []string) {
 		if strings.HasPrefix(file.Name(), ".") {
 			continue
 		}
+
 		n := filepath.Join(dir, file.Name())
 		id := append(parents, file.Name())
+		if skipFile(path.Join(id...), excludeSlice) {
+			continue
+		}
+
 		if file.IsDir() {
-			processDir(c, n, id)
+			processDir(c, n, id, excludeSlice)
 		} else {
 			c <- [2]string{n, path.Join(id...)}
 		}
@@ -55,10 +73,11 @@ func (a fileSlice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a fileSlice) Less(i, j int) bool { return a[i].name < a[j].name }
 
 func main() {
-	var outputFile, packageName, buildTags string
+	var outputFile, packageName, buildTags, excludeList string
 	flag.StringVar(&outputFile, "o", "staticfiles.go", "File to write results to.")
 	flag.StringVar(&packageName, "package", "", "Package name of the resulting file. Defaults to name of the resulting file directory")
 	flag.StringVar(&buildTags, "build-tags", "", "Build tags to write to the file")
+	flag.StringVar(&excludeList, "exclude", "", "Comma-separated patterns to exclude. (e.g. *.scss, sass/ etc.)")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		log.Println("Please pass in a directory to process")
@@ -73,10 +92,12 @@ func main() {
 		}
 		packageName = filepath.Base(filepath.Dir(f))
 	}
+	excludeSlice := strings.Split(excludeList, ",")
+
 	c := make(chan [2]string, 128)
 	go func() {
 		for _, arg := range flag.Args() {
-			processDir(c, arg, []string{})
+			processDir(c, arg, []string{}, excludeSlice)
 		}
 		close(c)
 	}()
