@@ -5,4 +5,4 @@ ego.go: template.ego
 
 files/files.go: ego.go static/*
 	@go get
-	staticfiles --build-tags="!dev" -o files/files.go static/
+	staticfiles --build-tags="!dev" --exclude="*.scss" -o files/files.go static/
