@@ -41,6 +41,18 @@ var NotFound = http.NotFound
 
 // ServeHTTP serves a request, attempting to reply with an embedded file.
 func ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+  const indexPage = "index.html"
+  var dirWithIndex string
+  if _, ok := staticFiles[strings.TrimPrefix(req.URL.Path, "/")+indexPage]; ok {
+    dirWithIndex = req.URL.Path
+  }
+  if req.URL.Path == dirWithIndex {
+    req.URL.Path = dirWithIndex + indexPage
+  } else if req.URL.Path == dirWithIndex + indexPage {
+    rw.Header().Set("Location", dirWithIndex)
+    rw.WriteHeader(http.StatusMovedPermanently)
+    return
+  }
   f, ok := staticFiles[strings.TrimPrefix(req.URL.Path, "/")]
   if !ok {
     NotFound(rw, req)
