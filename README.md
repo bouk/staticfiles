@@ -16,6 +16,14 @@ I recommend creating a separate package inside your project to serve as the cont
 
 For an example of how to use the resulting package, check out `example/example.go`. You can also see the API it generates at [godoc.org](https://godoc.org/github.com/bouk/staticfiles/files).
 
+## Installation
+
+Install with
+
+```
+go get github.com/bouk/staticfiles
+```
+
 ## Usage
 
 Simply run the following command (it will create the result directory if it doesn't exist yet):
