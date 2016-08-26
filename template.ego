@@ -94,9 +94,8 @@ func Open(name string) (io.ReadCloser, error) {
 
   if f.size == 0 {
     return ioutil.NopCloser(strings.NewReader(f.data)), nil
-  } else {
-    return gzip.NewReader(strings.NewReader(f.data))
   }
+  return gzip.NewReader(strings.NewReader(f.data))
 }
 
 // ModTime returns the modification time of the original file.
