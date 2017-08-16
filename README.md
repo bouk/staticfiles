@@ -68,7 +68,7 @@ The resulting file will contain the following functions and variables:
 
 ### `func ModTime(name string) time.Time`
 
-`ModTime` returns the modification file of the original file. This can be useful for caching purposes.
+`ModTime` returns the modification time of the original file. This can be useful for caching purposes.
 
 ### `NotFound http.Handler`
 
