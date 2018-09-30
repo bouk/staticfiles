@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/bouk/staticfiles/files"
+	"bou.ke/staticfiles/files"
 	"net/http"
 )
 

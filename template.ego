@@ -1,5 +1,13 @@
-<%! func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error %>
-<%% import "fmt" %%><%% import "encoding/hex" %%><% if buildTags != "" { %>
+<%
+package main
+
+import (
+  "fmt"
+  "encoding/hex"
+)
+
+func GenerateTemplate(w io.Writer, pkg string, files []*file, buildTags string) error {
+if buildTags != "" { %>
 // +build <%== buildTags %>
 
 <% } %>package <%== pkg %>
@@ -117,3 +125,7 @@ func Hash(file string) (s string) {
   }
   return
 }
+<%
+  return nil
+}
+%>

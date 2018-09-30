@@ -1,8 +1,8 @@
-build: ego.go files/files.go
+build: template.ego.go files/files.go
 
-ego.go: template.ego
-	ego -package main -o ego.go
+template.ego.go: template.ego
+	ego
 
-files/files.go: ego.go static/*
+files/files.go: template.ego.go static/*
 	@go get
 	staticfiles --build-tags="!dev" --exclude="*.scss" -o files/files.go static/
