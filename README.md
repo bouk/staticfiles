@@ -1,3 +1,7 @@
+# DEPRECATED
+
+Go 1.16 has file embedding built-in, you should use that!
+
 # staticfiles
 
 Staticfiles allows you to embed a directory of files into your Go binary. It is optimized for performance and file size, and automatically compresses everything before embedding it. Here are some of its features:
